@@ -48,8 +48,8 @@ jobs:
       - name: Debug output structure
         run: find builds/ -type f | sort
 
-      - name: Set artifact name
-        if: set-artifact-name
+      - name: set artifact name
+        id: set-artifact-name
         run: echo "name=WebGL-Build-${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Upload WebGL Build
