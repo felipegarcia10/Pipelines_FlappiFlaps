@@ -1,0 +1,95 @@
+name: Build and Deploy Unity WebGL
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  #identifier
+  group: ${{ github.workflow }} -${{ github.ref}}
+  cancel-in-progress: true
+
+jobs: 
+  build:
+    name: Build unity WebGL
+    runs-on: ubuntu-latest
+
+    outputs:
+      artifact-name: ${{ steps.set-artifact-name.outputs.name}}
+# - means that is an item in an array  
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          #a hash is created with all the files in the specified folders to then use it to validate if there were any changes in those files
+          key: Library-WebGL-${{ hashFiles('FlappiFlaps/Assets/**', 'FlappiFlaps/Packages/**', 'FlappiFlaps/ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+            Library-
+
+      - name: Build Unity WebGL
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectpath: .
+          targetPlatform: WebGL
+          buildsPath: builds
+          
+      - name: Debug output structure
+        run: find builds/ -type f | sort
+
+      - name: Set artifact name
+        if: set-artifact-name
+        run: echo "name=WebGL-Build-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Upload WebGL Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set-artifact-name.outputs.name }}
+          path: Builds/WebGL/WebGL
+          retention-days: 7
+  
+  deploy:
+    name: Deploy to Github pages
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github.pages
+      url: ${{ steps.deploy.outputs.page_utl }}
+
+    steps:
+      - name: Download WebGL Build
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: ./game
+
+      - name: Upload to github pages artifact store
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./game
+
+      - name: Deploy to Github pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Print deploy URL
+        run: |
+          echo "Game is live at"
+          echo " ${{steps.deploy.outputs.page_url}}"
+    
