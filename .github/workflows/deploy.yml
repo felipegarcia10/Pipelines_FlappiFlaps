@@ -56,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.set-artifact-name.outputs.name }}
-          path: Builds/WebGL/WebGL
+          path: builds/WebGL/WebGL
           retention-days: 7
   
   deploy:
